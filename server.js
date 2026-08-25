@@ -5,20 +5,16 @@
 //   • /ws                  →  WebSocket broadcast of world boss spawns
 //   • /api/report          →  headless AFS clients push world boss sightings
 //
-// WORLD BOSSES (from AFS Dimension 2 dump — EntityTypes.luau):
-//   • Crocodile       = "Sand Demon"  (drops: Sand, CrocodileMount, CrocodileCape)
-//   • HandDemon       = "Hand Demon"   (drops: WardingMask, DevourerTitle)
-//   • SeaBeast        = "Sea Beast"    (drops: FruitRoll, ToothNecklace, SeaEmperor)
-//   • Shukaku         = "Shukaku"      (drops: SandBerserkMode, SandGourd)
-//   • FoundingTitan   = "Founding Titan" (drops: ShiftingSerum, ScoutCape, Liberator)
-//   • RumblingColossal = "Rumbling Titan" (walks animation, large world boss)
-//   • ArmoredTitan    = "Armored Titan" (drops: Titan-related items)
+// WORLD BOSSES — verified against the LIVE game config
+// (ReplicatedStorage.Descriptions.EntityDescriptions, Dimension 2, v26).
+// Every entry below has isBoss = true in-game. Display names are the
+// exact strings the game renders on each boss billboard.
+// NOTE: in-game, "Sand Demon" is SHUKAKU; Crocodile's billboard reads
+// "Alligator". RumblingColossal was removed on purpose (not a world boss).
 //
 // Detection source (live game):
-//   ReplicatedStorage.Generated._ClientEvents.spawnEntities
-//     → callback fires with a list of {entityId, name, position, ...}
-//     → Entity.name matches one of the world boss EntityTypes
-//     → model is added to Workspace.ClientEntities
+//   Entities spawn into Workspace.ClientEntities named after their
+//   EntityType, and bosses receive the CollectionService tag "isBoss".
 //
 // Deploy:
 //   npm install express ws cors
@@ -38,12 +34,12 @@ const PLACE_ID  = 122385531796312;           // AFS Dimension 2
 const UNIVERSE  = 10321202755;
 
 // ═════════════════════════════════════════════════════════════════════
-// WORLD BOSS CATALOG (from ReplicatedStorage/Configs/EntityDrops.luau)
+// WORLD BOSS CATALOG (verified vs live EntityDescriptions, D2 v26)
 // Used to validate reports + send display info to clients
 // ═════════════════════════════════════════════════════════════════════
 const WORLD_BOSSES = {
   Crocodile: {
-    displayName: 'Sand Demon',
+    displayName: 'Alligator',
     entityType: 'Crocodile',
     category: 'world',
     drops: ['Sand (9%)', 'CrocodileMount (40%)', 'CrocodileCape (3%)', 'TraitReroll (25%)'],
@@ -67,7 +63,8 @@ const WORLD_BOSSES = {
     iconColor: '#2c7be0',
   },
   Shukaku: {
-    displayName: 'Shukaku',
+    // In-game billboard name for Shukaku is literally "Sand Demon".
+    displayName: 'Sand Demon',
     entityType: 'Shukaku',
     category: 'world',
     drops: ['SandBerserkMode (5%)', 'SandGourd (1%)', 'TraitReroll (15%)'],
@@ -81,14 +78,6 @@ const WORLD_BOSSES = {
     drops: ['ShiftingSerum (25%)', 'ScoutCape (10%)', 'Liberator (0.5%)'],
     rewards: '4500-5000 Yen, 4000-5000 Chikara',
     iconColor: '#a07050',
-  },
-  RumblingColossal: {
-    displayName: 'Rumbling Titan',
-    entityType: 'RumblingColossal',
-    category: 'world',
-    drops: ['Unknown (rare world boss)'],
-    rewards: 'Unknown',
-    iconColor: '#605040',
   },
   ArmoredTitan: {
     displayName: 'Armored Titan',
@@ -345,11 +334,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// --- Landing page ---
+// --- Landing page + live dashboard (all data real — no test/simulation) ---
 app.get('/', (req, res) => {
   res.type('html').send(`<!doctype html><html><head><title>AFS World Boss Auto-Joiner</title>
 <style>
-  body { font: 14px/1.5 system-ui, sans-serif; background:#0a0a14; color:#e0e0f0; padding:32px; max-width:800px; margin:0 auto; }
+  body { font: 14px/1.5 system-ui, sans-serif; background:#0a0a14; color:#e0e0f0; padding:32px; max-width:900px; margin:0 auto; }
   h1 { color:#a060ff; font-size:24px; margin-bottom:4px; }
   h2 { color:#c0a0ff; font-size:16px; margin-top:24px; }
   code { background:#1a1a28; padding:2px 6px; border-radius:4px; color:#d0c0ff; font-size:12px; }
@@ -360,59 +349,97 @@ app.get('/', (req, res) => {
   th { color:#a060ff; font-weight:600; }
   td code { background:transparent; color:#e0c0ff; }
   .pill { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; margin-right:4px; }
-  .sand { background:#3a2a14; color:#d4a574; }
+  .allig{ background:#3a2a14; color:#d4a574; }
   .hand { background:#3a1414; color:#ff8080; }
   .sea  { background:#142a4a; color:#80c0ff; }
   .shuk { background:#3a2a14; color:#e0c040; }
   .titan{ background:#2a2030; color:#c0a0c0; }
+  .statgrid { display:flex; gap:16px; flex-wrap:wrap; margin:12px 0; }
+  .stat { background:#14141f; border:1px solid #2a2a3a; border-radius:10px; padding:12px 18px; min-width:120px; }
+  .stat .num { font-size:26px; font-weight:700; color:#c0a0ff; }
+  .stat .lbl { font-size:11px; color:#8888a8; text-transform:uppercase; letter-spacing:.08em; }
+  .muted { color:#666680; font-size:12px; }
 </style></head><body>
-<h1>AFS World Boss Auto-Joiner</h1>
-<p>Backend running. <a href="/api/health">/api/health</a> · <a href="/api/bosses">/api/bosses</a> · <a href="/api/clients">/api/clients</a> · <a href="/api/catalog">/api/catalog</a></p>
+<h1>AFS World Boss Auto-Joiner <span class="muted">— live dashboard</span></h1>
+<p>Backend running · auto-refreshes every 5s · <a href="/api/health">/api/health</a> · <a href="/api/clients">/api/clients</a> · <a href="/api/bosses">/api/bosses</a> · <a href="/api/catalog">/api/catalog</a></p>
+
+<div class="statgrid">
+  <div class="stat"><div class="num" id="st-online">–</div><div class="lbl">Clients Online</div></div>
+  <div class="stat"><div class="num" id="st-ws">–</div><div class="lbl">WS Connections</div></div>
+  <div class="stat"><div class="num" id="st-bosses">–</div><div class="lbl">Active Sightings</div></div>
+  <div class="stat"><div class="num" id="st-keys">–</div><div class="lbl">Keys</div></div>
+  <div class="stat"><div class="num" id="st-uptime">–</div><div class="lbl">Uptime</div></div>
+</div>
+
+<h2>Clients Online</h2>
+<table id="clients-table"><tr><th>User</th><th>Plan</th><th>Connected At</th></tr></table>
+
+<h2>Active Boss Sightings <span class="muted">(reported by real clients only)</span></h2>
+<table id="bosses-table"><tr><th>Boss</th><th>Dimension</th><th>Players</th><th>Health</th><th>Reported</th><th>Job ID</th></tr></table>
 
 <h2>Supported World Bosses</h2>
 <table>
 <tr><th>Boss</th><th>Internal Name</th><th>Drops</th><th>Rewards</th></tr>
-<tr><td><span class="pill sand">Sand Demon</span></td><td><code>Crocodile</code></td><td>Sand · CrocodileMount · CrocodileCape</td><td>500 Yen, 300 Chikara</td></tr>
+<tr><td><span class="pill allig">Alligator</span></td><td><code>Crocodile</code></td><td>Sand · CrocodileMount · CrocodileCape</td><td>500 Yen, 300 Chikara</td></tr>
 <tr><td><span class="pill hand">Hand Demon</span></td><td><code>HandDemon</code></td><td>WardingMask · DevourerTitle</td><td>500 Yen, 300 Chikara, 300 Tensei</td></tr>
 <tr><td><span class="pill sea">Sea Beast</span></td><td><code>SeaBeast</code></td><td>FruitRoll · ToothNecklace · SeaEmperor</td><td>500 Yen, 300 Chikara, 300 Tensei</td></tr>
-<tr><td><span class="pill shuk">Shukaku</span></td><td><code>Shukaku</code></td><td>SandBerserkMode · SandGourd</td><td>500 Yen, 300 Chikara, 300 Tensei</td></tr>
+<tr><td><span class="pill shuk">Sand Demon</span></td><td><code>Shukaku</code></td><td>SandBerserkMode · SandGourd</td><td>500 Yen, 300 Chikara, 300 Tensei</td></tr>
 <tr><td><span class="pill titan">Founding Titan</span></td><td><code>FoundingTitan</code></td><td>ShiftingSerum · ScoutCape · Liberator</td><td>4500-5000 Yen, 4000-5000 Chikara</td></tr>
-<tr><td><span class="pill titan">Rumbling Titan</span></td><td><code>RumblingColossal</code></td><td>Rare world drops</td><td>High-tier</td></tr>
 <tr><td><span class="pill titan">Armored Titan</span></td><td><code>ArmoredTitan</code></td><td>Titan items</td><td>High-tier</td></tr>
 </table>
 
 <h2>Endpoints</h2>
 <ul>
 <li><code>POST /api/free/validate</code> — key validation (hide.lat style)</li>
-<li><code>POST /api/report</code> — headless client pushes world boss sighting</li>
-<li><code>WS  /ws</code> — subscribe to boss spawn broadcasts</li>
+<li><code>POST /api/report</code> — client pushes a world boss sighting</li>
+<li><code>WS  /ws</code> — subscribe to boss spawn broadcasts + presence</li>
 <li><code>GET  /api/bosses</code> — current sighting registry</li>
+<li><code>GET  /api/clients</code> — online script users</li>
 <li><code>GET  /api/catalog</code> — supported boss list</li>
 <li><code>POST /api/key/create</code> — admin only</li>
 </ul>
 
-<h2>Demo Key</h2>
-<pre>AFS-WORLD-DEMO-7K3X</pre>
-
-<h2>Test Validate</h2>
-<pre>curl -X POST ${req.protocol}://${req.get('host')}/api/free/validate \\
-  -H "Content-Type: application/json" \\
-  -d '{"id":"afs","key":"AFS-WORLD-DEMO-7K3X","user":"12345","timestamp":'$(date +%s)'}'</pre>
-
-<h2>Test Report</h2>
-<pre>curl -X POST ${req.protocol}://${req.get('host')}/api/report \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "key":"AFS-WORLD-DEMO-7K3X",
-    "user":"12345",
-    "jobId":"test-server-abc",
-    "dimension":2,
-    "boss":{"entityType":"SeaBeast","health":50000,"maxHealth":100000},
-    "server":{"players":8,"pingMs":45}
-  }'</pre>
-
-<h2>WebSocket Test</h2>
-<pre>wscat -c ${req.protocol === 'http' ? 'ws' : 'wss'}://${req.get('host')}/ws</pre>
+<script>
+function fmtTime(ms) {
+  if (!ms) return '–';
+  var s = Math.floor(ms / 1000);
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h > 0 ? h + 'h ' + m + 'm' : m > 0 ? m + 'm ' + (s % 60) + 's' : s + 's';
+}
+async function refresh() {
+  try {
+    var h = await (await fetch('/api/health')).json();
+    document.getElementById('st-online').textContent = h.onlineClients;
+    document.getElementById('st-ws').textContent = h.wsClients;
+    document.getElementById('st-bosses').textContent = h.sightings;
+    document.getElementById('st-keys').textContent = h.keys;
+    document.getElementById('st-uptime').textContent = fmtTime(h.uptime * 1000);
+  } catch (e) {}
+  try {
+    var c = await (await fetch('/api/clients')).json();
+    var ct = document.getElementById('clients-table');
+    ct.innerHTML = '<tr><th>User</th><th>Plan</th><th>Connected At</th></tr>';
+    if (!c.count) ct.innerHTML += '<tr><td colspan="3" class="muted">No clients online right now.</td></tr>';
+    c.clients.forEach(function (cl) {
+      ct.innerHTML += '<tr><td>' + cl.user + '</td><td>' + cl.plan + '</td><td>' + new Date(cl.connectedAt).toLocaleTimeString() + '</td></tr>';
+    });
+  } catch (e) {}
+  try {
+    var b = await (await fetch('/api/bosses')).json();
+    var bt = document.getElementById('bosses-table');
+    bt.innerHTML = '<tr><th>Boss</th><th>Dimension</th><th>Players</th><th>Health</th><th>Reported</th><th>Job ID</th></tr>';
+    if (!b.count) bt.innerHTML += '<tr><td colspan="6" class="muted">No active sightings. Cards appear the moment a running client detects a world boss spawn.</td></tr>';
+    b.bosses.forEach(function (s) {
+      var hp = s.boss.maxHealth ? Math.round((s.boss.health || 0) / s.boss.maxHealth * 100) + '%' : '–';
+      bt.innerHTML += '<tr><td style="color:' + (s.iconColor || '#fff') + '">' + s.boss.displayName + '</td><td>D' + s.dimension + '</td><td>'
+        + s.server.players + '</td><td>' + hp + '</td><td>' + new Date(s.reportedAt).toLocaleTimeString() + '</td><td><code>'
+        + s.jobId.slice(0, 14) + '…</code></td></tr>';
+    });
+  } catch (e) {}
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
 </body></html>`);
 });
 
@@ -442,6 +469,7 @@ function broadcast(obj) {
 wss.on('connection', (ws, req) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   console.log(`[ws] connect from ${ip} (total: ${wss.clients.size})`);
+  ws._lastMessage = Date.now();
 
   // Send current registry immediately on connect
   for (const [key, info] of SIGHTING_REGISTRY) {
@@ -456,6 +484,11 @@ wss.on('connection', (ws, req) => {
   }));
 
   ws.on('message', (data) => {
+    // Any app-level message proves the client is alive — many executor
+    // WebSocket implementations never answer protocol-level pings, so
+    // liveness must not depend on pong frames alone.
+    ws.isAlive = true;
+    ws._lastMessage = Date.now();
     try {
       const msg = JSON.parse(data.toString());
       if (msg.type === 'ping') {
@@ -504,15 +537,23 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-// Heartbeat
+// Heartbeat — protocol pings alone can't be trusted with executor
+// WebSocket clients (many never send pong frames). A client is only
+// terminated when it failed the last pong check AND has sent nothing
+// app-level (e.g. its 25s keepalive ping) for over 75 seconds.
 setInterval(() => {
+  const now = Date.now();
   for (const ws of wss.clients) {
     if (ws.isAlive === false) {
-      ws.terminate();
-      continue;
+      if (now - (ws._lastMessage || now) > 75 * 1000) {
+        ws.terminate();
+        continue;
+      }
+      // Recent app-level traffic — give it another cycle instead of killing it.
+      ws.isAlive = true;
     }
     ws.isAlive = false;
-    ws.ping();
+    try { ws.ping(); } catch (_) {}
   }
 }, 30 * 1000);
 
