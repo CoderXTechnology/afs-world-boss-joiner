@@ -1,0 +1,19 @@
+{
+  "name": "afs-world-boss-autojoiner-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend for AFS World Boss Auto-Joiner — mirrors Saint Finder's Railway WebSocket architecture",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

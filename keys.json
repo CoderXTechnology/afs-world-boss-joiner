@@ -1,0 +1,27 @@
+{
+  "AFS-WORLD-DEMO-7K3X": {
+    "userIds": [
+      "1747721320"
+    ],
+    "createdAt": 1787615249407,
+    "plan": "free",
+    "note": "demo world boss joiner key"
+  },
+  "AFS-WORLD-PRO-864987B6-382B": {
+    "userIds": [
+      "11111",
+      "22222"
+    ],
+    "createdAt": 1787615258613,
+    "plan": "pro",
+    "note": "multi-user key"
+  },
+  "AFS-WORLD-FREE-4F9D7DC4-0C11": {
+    "userIds": [
+      "1747721320"
+    ],
+    "createdAt": 1787615258902,
+    "plan": "free",
+    "note": "user key"
+  }
+}

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: afs-world-boss-joiner
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8080
