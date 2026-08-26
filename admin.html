@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AFS World Boss — Admin</title>
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body>
+  <!-- Login gate -->
+  <div id="login-view" class="login-wrap hidden">
+    <form id="login-form" class="login-card">
+      <h1>AFS World Boss</h1>
+      <p class="muted">Private admin dashboard</p>
+      <input id="login-token" type="password" placeholder="Admin token" autocomplete="current-password" />
+      <button type="submit">Sign in</button>
+      <p id="login-error" class="error"></p>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dash-view" class="hidden">
+    <header>
+      <div>
+        <h1>AFS World Boss <span class="muted">admin</span></h1>
+        <p id="conn-note" class="muted">connecting…</p>
+      </div>
+      <div class="header-actions">
+        <button id="btn-refresh">Refresh</button>
+        <button id="btn-clear-stale" class="danger">Clear stale</button>
+        <button id="btn-logout">Log out</button>
+      </div>
+    </header>
+
+    <section class="cards">
+      <div class="card"><h2 id="card-backend">—</h2><p>Backend</p></div>
+      <div class="card"><h2 id="card-servers">—</h2><p>Active servers</p></div>
+      <div class="card"><h2 id="card-bosses">—</h2><p>Active bosses</p></div>
+      <div class="card"><h2 id="card-total">—</h2><p>Total spottings</p></div>
+      <div class="card"><h2 id="card-ws">—</h2><p>WS connections</p></div>
+    </section>
+
+    <section class="table-wrap">
+      <table id="spots-table">
+        <thead>
+          <tr>
+            <th>Boss</th><th>Rarity</th><th>Variant</th><th>HP</th>
+            <th>Players</th><th>PlaceId</th><th>JobId</th><th>Age</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="spots-body">
+          <tr><td colspan="10" class="muted">No active bosses.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="table-wrap">
+      <h3 class="section-title">Servers</h3>
+      <table id="servers-table">
+        <thead>
+          <tr><th>PlaceId</th><th>JobId</th><th>Players</th><th>Last seen</th></tr>
+        </thead>
+        <tbody id="servers-body">
+          <tr><td colspan="4" class="muted">No servers online.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div id="raw-modal" class="modal hidden">
+      <div class="modal-card">
+        <pre id="raw-content"></pre>
+        <button id="raw-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

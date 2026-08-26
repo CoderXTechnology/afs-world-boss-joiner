@@ -1,0 +1,20 @@
+{
+  "name": "afs-world-boss-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "simulate": "node scripts/simulateBoss.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "ws": "^8.18.0",
+    "helmet": "^8.1.0",
+    "express-rate-limit": "^8.0.0"
+  }
+}
